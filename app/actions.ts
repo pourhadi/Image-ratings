@@ -13,7 +13,6 @@ export async function uploadImage(formData: FormData) {
     const fileName = `${Math.random()}.${fileExt}`
     const filePath = `${fileName}`
 
-    // Convert file to ArrayBuffer for upload
     const arrayBuffer = await file.arrayBuffer()
     const buffer = new Uint8Array(arrayBuffer)
 
@@ -37,6 +36,47 @@ export async function uploadImage(formData: FormData) {
   } catch (error) {
     console.error("Error in uploadImage:", error)
     return { success: false, error: "Failed to upload image" }
+  }
+}
+
+export async function deleteImage(id: number) {
+  try {
+    // First, get the image URL
+    const { data: imageData, error: fetchError } = await supabaseAdmin
+      .from("images")
+      .select("url")
+      .eq("id", id)
+      .single()
+
+    if (fetchError) {
+      throw fetchError
+    }
+
+    if (!imageData) {
+      throw new Error("Image not found")
+    }
+
+    // Extract the file name from the URL
+    const fileName = imageData.url.split("/").pop()
+
+    // Delete the image from storage
+    const { error: storageError } = await supabaseAdmin.storage.from("images").remove([fileName])
+
+    if (storageError) {
+      throw storageError
+    }
+
+    // Delete the image record from the database
+    const { error: deleteError } = await supabaseAdmin.from("images").delete().eq("id", id)
+
+    if (deleteError) {
+      throw deleteError
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error("Error in deleteImage:", error)
+    return { success: false, error: "Failed to delete image" }
   }
 }
 

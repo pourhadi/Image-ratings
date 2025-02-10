@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { supabase } from "../lib/supabase-client"
+import { deleteImage } from "../app/actions"
 
 interface Image {
   id: number
@@ -45,10 +46,33 @@ export default function ImageThumbnailList() {
     }
   }
 
-  function calculateAverageRating(ratings: { content_rating: number; aesthetic_rating: number }[]) {
-    if (ratings.length === 0) return "No ratings"
-    const sum = ratings.reduce((acc, rating) => acc + rating.content_rating + rating.aesthetic_rating, 0)
-    return (sum / (ratings.length * 2)).toFixed(1)
+  function calculateAverageRatings(ratings: { content_rating: number; aesthetic_rating: number }[]) {
+    if (ratings.length === 0) return { content: "N/A", aesthetic: "N/A" }
+    const sum = ratings.reduce(
+      (acc, rating) => ({
+        content: acc.content + rating.content_rating,
+        aesthetic: acc.aesthetic + rating.aesthetic_rating,
+      }),
+      { content: 0, aesthetic: 0 },
+    )
+    return {
+      content: (sum.content / ratings.length).toFixed(1),
+      aesthetic: (sum.aesthetic / ratings.length).toFixed(1),
+    }
+  }
+
+  async function handleDelete(id: number) {
+    try {
+      const result = await deleteImage(id)
+      if (result.success) {
+        setImages(images.filter((image) => image.id !== id))
+      } else {
+        throw new Error(result.error)
+      }
+    } catch (error) {
+      console.error("Error deleting image:", error)
+      setError("Failed to delete image. Please try again.")
+    }
   }
 
   if (error) {
@@ -61,17 +85,27 @@ export default function ImageThumbnailList() {
   }
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-      {images.map((image) => (
-        <div key={image.id} className="border rounded-lg overflow-hidden shadow-sm">
-          <img src={image.url || "/placeholder.svg"} alt={`Image ${image.id}`} className="w-full h-40 object-cover" />
-          <div className="p-2 bg-gray-100">
-            <p className="text-sm font-semibold">ID: {image.id}</p>
-            <p className="text-sm">Avg Rating: {calculateAverageRating(image.ratings)}</p>
-            <p className="text-xs text-gray-600">Total Ratings: {image.ratings.length}</p>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {images.map((image) => {
+        const avgRatings = calculateAverageRatings(image.ratings)
+        return (
+          <div key={image.id} className="border rounded-lg overflow-hidden shadow-sm">
+            <img src={image.url || "/placeholder.svg"} alt={`Image ${image.id}`} className="w-full h-40 object-cover" />
+            <div className="p-2 bg-gray-100">
+              <p className="text-sm font-semibold">ID: {image.id}</p>
+              <p className="text-sm">Content Rating: {avgRatings.content}</p>
+              <p className="text-sm">Aesthetic Rating: {avgRatings.aesthetic}</p>
+              <p className="text-xs text-gray-600">Total Ratings: {image.ratings.length}</p>
+              <button
+                onClick={() => handleDelete(image.id)}
+                className="mt-2 bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-xs"
+              >
+                Delete
+              </button>
+            </div>
           </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }
