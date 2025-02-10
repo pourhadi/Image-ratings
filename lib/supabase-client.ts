@@ -5,7 +5,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
 
 if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
-  throw new Error("Missing Supabase environment variables")
+  throw new Error("Missing Supabase environment variables" + supabaseUrl + ", " + supabaseAnonKey + ", " + supabaseServiceRoleKey)
 }
 
 // Client for public usage (client-side)
