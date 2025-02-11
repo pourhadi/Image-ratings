@@ -66,6 +66,8 @@ export async function deleteImage(id: number) {
       throw storageError
     }
 
+    await supabaseAdmin.from("ratings").delete().eq("image_id", id)
+
     // Delete the image record from the database
     const { error: deleteError } = await supabaseAdmin.from("images").delete().eq("id", id)
 
@@ -77,6 +79,22 @@ export async function deleteImage(id: number) {
   } catch (error) {
     console.error("Error in deleteImage:", error)
     return { success: false, error: "Failed to delete image" }
+  }
+}
+
+
+export async function updateImagePositions(updates: { id: number; position: number }[]) {
+  try {
+    const { error } = await supabaseAdmin.from("images").upsert(updates, { onConflict: "id" })
+
+    if (error) {
+      throw error
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error("Error in updateImagePositions:", error)
+    return { success: false, error: "Failed to update image positions" }
   }
 }
 

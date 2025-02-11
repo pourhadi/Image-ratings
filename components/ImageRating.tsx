@@ -17,7 +17,7 @@ export default function ImageRating() {
 
   async function fetchImages() {
     try {
-      const { data, error } = await supabase.from("images").select("*").order("created_at", { ascending: true })
+      const { data, error } = await supabase.from("images").select("*").order("position", { ascending: true })
 
       if (error) {
         throw error

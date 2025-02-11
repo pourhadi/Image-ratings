@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from "react"
 import { supabase } from "../lib/supabase-client"
-import { deleteImage } from "../app/actions"
+import { deleteImage, updateImagePositions } from "../app/actions"
+import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd"
 
 interface Image {
   id: number
   url: string
+  position: number
   ratings: {
     content_rating: number
     aesthetic_rating: number
@@ -24,16 +26,17 @@ export default function ImageThumbnailList() {
   async function fetchImagesWithRatings() {
     try {
       const { data, error } = await supabase
-        .from("images")
-        .select(`
+          .from("images")
+          .select(`
           id,
           url,
+          position,
           ratings (
             content_rating,
             aesthetic_rating
           )
         `)
-        .order("created_at", { ascending: false })
+          .order("position", { ascending: true })
 
       if (error) {
         throw error
@@ -49,11 +52,11 @@ export default function ImageThumbnailList() {
   function calculateAverageRatings(ratings: { content_rating: number; aesthetic_rating: number }[]) {
     if (ratings.length === 0) return { content: "N/A", aesthetic: "N/A" }
     const sum = ratings.reduce(
-      (acc, rating) => ({
-        content: acc.content + rating.content_rating,
-        aesthetic: acc.aesthetic + rating.aesthetic_rating,
-      }),
-      { content: 0, aesthetic: 0 },
+        (acc, rating) => ({
+          content: acc.content + rating.content_rating,
+          aesthetic: acc.aesthetic + rating.aesthetic_rating,
+        }),
+        { content: 0, aesthetic: 0 },
     )
     return {
       content: (sum.content / ratings.length).toFixed(1),
@@ -75,38 +78,91 @@ export default function ImageThumbnailList() {
     }
   }
 
+  async function handleDragEnd(result: any) {
+    if (!result.destination) {
+      return
+    }
+
+    const newImages = Array.from(images)
+    const [reorderedItem] = newImages.splice(result.source.index, 1)
+    newImages.splice(result.destination.index, 0, reorderedItem)
+
+    const updatedImages = newImages.map((image, index) => ({
+      ...image,
+      position: index + 1,
+    }))
+
+    setImages(updatedImages)
+
+    try {
+      const result = await updateImagePositions(updatedImages.map((img) => ({ id: img.id, position: img.position })))
+      if (!result.success) {
+        throw new Error(result.error)
+      }
+    } catch (error) {
+      console.error("Error updating image positions:", error)
+      setError("Failed to update image positions. Please try again.")
+      fetchImagesWithRatings() // Refetch images to reset the order
+    }
+  }
+
   if (error) {
     return (
-      <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-        <strong className="font-bold">Error: </strong>
-        <span className="block sm:inline">{error}</span>
-      </div>
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+          <strong className="font-bold">Error: </strong>
+          <span className="block sm:inline">{error}</span>
+        </div>
     )
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {images.map((image) => {
-        const avgRatings = calculateAverageRatings(image.ratings)
-        return (
-          <div key={image.id} className="border rounded-lg overflow-hidden shadow-sm">
-            <img src={image.url || "/placeholder.svg"} alt={`Image ${image.id}`} className="w-full h-40 object-cover" />
-            <div className="p-2 bg-gray-100">
-              <p className="text-sm font-semibold">ID: {image.id}</p>
-              <p className="text-sm">Content Rating: {avgRatings.content}</p>
-              <p className="text-sm">Aesthetic Rating: {avgRatings.aesthetic}</p>
-              <p className="text-xs text-gray-600">Total Ratings: {image.ratings.length}</p>
-              <button
-                onClick={() => handleDelete(image.id)}
-                className="mt-2 bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-xs"
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <Droppable droppableId="images">
+          {(provided) => (
+              <div
+                  {...provided.droppableProps}
+                  ref={provided.innerRef}
+                  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
               >
-                Delete
-              </button>
-            </div>
-          </div>
-        )
-      })}
-    </div>
+                {images.map((image, index) => {
+                  const avgRatings = calculateAverageRatings(image.ratings)
+                  return (
+                      <Draggable key={image.id} draggableId={image.id.toString()} index={index}>
+                        {(provided) => (
+                            <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                className="border rounded-lg overflow-hidden shadow-sm"
+                            >
+                              <img
+                                  src={image.url || "/placeholder.svg"}
+                                  alt={`Image ${image.id}`}
+                                  className="w-full h-40 object-cover"
+                              />
+                              <div className="p-2 bg-gray-100">
+                                <p className="text-sm font-semibold">ID: {image.id}</p>
+                                <p className="text-sm">Position: {image.position}</p>
+                                <p className="text-sm">Content Rating: {avgRatings.content}</p>
+                                <p className="text-sm">Aesthetic Rating: {avgRatings.aesthetic}</p>
+                                <p className="text-xs text-gray-600">Total Ratings: {image.ratings.length}</p>
+                                <button
+                                    onClick={() => handleDelete(image.id)}
+                                    className="mt-2 bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-2 rounded text-xs"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                        )}
+                      </Draggable>
+                  )
+                })}
+                {provided.placeholder}
+              </div>
+          )}
+        </Droppable>
+      </DragDropContext>
   )
 }
 
