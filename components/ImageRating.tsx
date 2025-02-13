@@ -14,10 +14,10 @@ export default function ImageRating() {
 
   useEffect(() => {
     fetchImages()
-    // Enable inputs after 5 seconds
+    // Enable inputs after the initial 3 seconds
     const timer = setTimeout(() => {
       setIsDisabled(false)
-    }, 5000)
+    }, 3000)
 
     return () => clearTimeout(timer) // Cleanup timeout
   }, [])
@@ -51,10 +51,20 @@ export default function ImageRating() {
         throw error
       }
 
+      // Disable inputs when moving to next image
+      setIsDisabled(true)
+
+      // Reset ratings and move to the next image
       setCurrentImageIndex(currentImageIndex + 1)
       setContentRating(0)
       setAestheticRating(0)
-      setError(null)
+
+      // Re-enable inputs after 3 seconds
+      const timer = setTimeout(() => {
+        setIsDisabled(false)
+      }, 3000)
+
+      return () => clearTimeout(timer) // Cleanup the timer if component unmounts
     } catch (error) {
       console.error("Error submitting ratings:", error)
       setError("Failed to submit ratings. Please try again.")
