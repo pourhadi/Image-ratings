@@ -10,9 +10,16 @@ export default function ImageRating() {
   const [contentRating, setContentRating] = useState(0)
   const [aestheticRating, setAestheticRating] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const [isDisabled, setIsDisabled] = useState(true) // State to disable rating input controls
 
   useEffect(() => {
     fetchImages()
+    // Enable inputs after 5 seconds
+    const timer = setTimeout(() => {
+      setIsDisabled(false)
+    }, 5000)
+
+    return () => clearTimeout(timer) // Cleanup timeout
   }, [])
 
   async function fetchImages() {
@@ -63,33 +70,45 @@ export default function ImageRating() {
   }
 
   return (
-    <div className="space-y-8 max-w-2xl mx-auto">
-      {error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-          <strong className="font-bold">Error: </strong>
-          <span className="block sm:inline">{error}</span>
-        </div>
-      )}
-      {!error && images.length > 0 && (
-        <>
-          <img
-            src={images[currentImageIndex].url || "/placeholder.svg?height=400&width=600"}
-            alt={`Image ${currentImageIndex + 1}`}
-            className="w-full rounded-lg shadow-lg"
-          />
-          <div className="space-y-4">
-            <RatingInput label="Content Rating" value={contentRating} onChange={setContentRating} />
-            <RatingInput label="Aesthetic Rating" value={aestheticRating} onChange={setAestheticRating} />
-          </div>
-          <button
-            onClick={submitRatings}
-            className="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
-          >
-            Submit Ratings
-          </button>
-        </>
-      )}
-    </div>
+      <div className="space-y-8 max-w-2xl mx-auto">
+        {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+              <strong className="font-bold">Error: </strong>
+              <span className="block sm:inline">{error}</span>
+            </div>
+        )}
+        {!error && images.length > 0 && (
+            <>
+              <img
+                  src={images[currentImageIndex].url || "/placeholder.svg?height=400&width=600"}
+                  alt={`Image ${currentImageIndex + 1}`}
+                  className="w-full rounded-lg shadow-lg"
+              />
+              <div className="space-y-4">
+                <RatingInput
+                    label="Content Rating"
+                    value={contentRating}
+                    onChange={setContentRating}
+                    disabled={isDisabled} // Disable based on state
+                />
+                <RatingInput
+                    label="Aesthetic Rating"
+                    value={aestheticRating}
+                    onChange={setAestheticRating}
+                    disabled={isDisabled} // Disable based on state
+                />
+              </div>
+              <button
+                  onClick={submitRatings}
+                  className={`w-full ${
+                      isDisabled ? "bg-gray-400 cursor-not-allowed" : "bg-blue-500 hover:bg-blue-700"
+                  } text-white font-bold py-2 px-4 rounded`}
+                  disabled={isDisabled} // Disable the button as well for consistency
+              >
+                Next
+              </button>
+            </>
+        )}
+      </div>
   )
 }
-
